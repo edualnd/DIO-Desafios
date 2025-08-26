@@ -1,7 +1,8 @@
 package com.board.ui;
 
-import com.board.dto.BoardColumnInfoDTO;
-import com.board.persistence.entity.BoardColumnEntity;
+import com.board.dto.BoardColumnsInfoDTO;
+
+import com.board.persistence.entity.BoardColumnsEntity;
 import com.board.persistence.entity.BoardEntity;
 import com.board.persistence.entity.CardEntity;
 import com.board.service.BoardColumnQueryService;
@@ -74,7 +75,7 @@ public class BoardMenu {
         System.out.println("Informe o id do card que deseja mover para a próxima coluna");
         var cardId = scanner.nextLong();
         var boardColumnsInfo = entity.getBoardColumns().stream()
-                .map(bc -> new BoardColumnInfoDTO(bc.getId(), bc.getOrder(), bc.getKind()))
+                .map(bc -> new BoardColumnsInfoDTO(bc.getId(), bc.getOrder(), bc.getKind()))
                 .toList();
         try(var connection = getConnection()){
             new CardService(connection).moveToNextColumn(cardId, boardColumnsInfo);
@@ -89,7 +90,7 @@ public class BoardMenu {
         System.out.println("Informe o motivo do bloqueio do card");
         var reason = scanner.next();
         var boardColumnsInfo = entity.getBoardColumns().stream()
-                .map(bc -> new BoardColumnInfoDTO(bc.getId(), bc.getOrder(), bc.getKind()))
+                .map(bc -> new BoardColumnsInfoDTO(bc.getId(), bc.getOrder(), bc.getKind()))
                 .toList();
         try(var connection = getConnection()){
             new CardService(connection).block(cardId, reason, boardColumnsInfo);
@@ -115,7 +116,7 @@ public class BoardMenu {
         var cardId = scanner.nextLong();
         var cancelColumn = entity.getCancelColumn();
         var boardColumnsInfo = entity.getBoardColumns().stream()
-                .map(bc -> new BoardColumnInfoDTO(bc.getId(), bc.getOrder(), bc.getKind()))
+                .map(bc -> new BoardColumnsInfoDTO(bc.getId(), bc.getOrder(), bc.getKind()))
                 .toList();
         try(var connection = getConnection()){
             new CardService(connection).cancel(cardId, cancelColumn.getId(), boardColumnsInfo);
@@ -137,7 +138,7 @@ public class BoardMenu {
     }
 
     private void showColumn() throws SQLException {
-        var columnsIds = entity.getBoardColumns().stream().map(BoardColumnEntity::getId).toList();
+        var columnsIds = entity.getBoardColumns().stream().map(BoardColumnsEntity::getId).toList();
         var selectedColumnId = -1L;
         while (!columnsIds.contains(selectedColumnId)){
             System.out.printf("Escolha uma coluna do board %s pelo id\n", entity.getName());

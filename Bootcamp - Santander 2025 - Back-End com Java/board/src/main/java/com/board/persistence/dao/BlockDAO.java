@@ -1,58 +1,35 @@
 package com.board.persistence.dao;
 
-import com.board.persistence.entity.BoardEntity;
-import com.mysql.cj.jdbc.StatementImpl;
+
 import lombok.AllArgsConstructor;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.Optional;
+import java.time.OffsetDateTime;
+
+import static com.board.persistence.converter.OffsetDateTimeConverter.toTimestamp;
+
 
 @AllArgsConstructor
 public class BlockDAO {
     private final Connection connection;
-
-    public BoardEntity insert(final BoardEntity entity) throws SQLException {
-        var sql = "INSERT INTO FROM BOARDS (name) VALUES (?);";
+    public void block(final String reason, final Long cardId) throws SQLException {
+        var sql = "INSERT INTO BLOCKS (blocked_at, block_reason, card_id) VALUES (?, ?, ?);";
         try(var statement = connection.prepareStatement(sql)){
-            statement.setString(1, entity.getName());
-            statement.executeUpdate();
-            var resultSet = statement.getResultSet();
-            if (statement instanceof StatementImpl impl){
-                entity.setId(impl.getLastInsertID());
-
-            }
-            return entity;
-        }
-    }
-    public void delete(final Long id) throws SQLException {
-        var sql = "DELETE FROM BOARDS WHERE id = ?;";
-        try(var statement = connection.prepareStatement(sql)){
-            statement.setLong(1, id);
+            statement.setTimestamp(1, toTimestamp(OffsetDateTime.now()));
+            statement.setString(2, reason);
+            statement.setLong(3, cardId);
             statement.executeUpdate();
         }
     }
-    public Optional<BoardEntity> findById(final Long id) throws SQLException {
-        var sql = "SELECT id, nome FROM BOARDS WHERE id = ?;";
+
+    public void unblock(final String reason, final Long cardId) throws SQLException{
+        var sql = "UPDATE BLOCKS SET unblocked_at = ?, unblock_reason = ? WHERE card_id = ? AND unblock_reason IS NULL;";
         try(var statement = connection.prepareStatement(sql)){
-            statement.setLong(1, id);
-            statement.executeQuery();
-            var resultSet = statement.getResultSet();
-            if (resultSet.next()){
-                var entity = new BoardEntity();
-                entity.setId(resultSet.getLong("id"));
-                entity.setName(resultSet.getString("name"));
-                return Optional.of(entity);
-            }
-            return Optional.empty();
-        }
-    }
-    public boolean exists(final Long id) throws SQLException {
-        var sql = "SELECT 1 FROM BOARDS WHERE id = ?;";
-        try(var statement = connection.prepareStatement(sql)){
-            statement.setLong(1, id);
-            statement.executeQuery();
-            return statement.getResultSet().next();
+            statement.setTimestamp(1, toTimestamp(OffsetDateTime.now()));
+            statement.setString(2, reason);
+            statement.setLong(3, cardId);
+            statement.executeUpdate();
         }
     }
 }

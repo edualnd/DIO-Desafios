@@ -1,6 +1,8 @@
 package com.board.persistence.dao;
 
+import com.board.dto.CardDetailsDTO;
 import com.board.persistence.entity.BoardEntity;
+import com.board.persistence.entity.CardEntity;
 import com.mysql.cj.jdbc.StatementImpl;
 import lombok.AllArgsConstructor;
 
@@ -8,51 +10,79 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Optional;
 
+import static com.board.persistence.converter.OffsetDateTimeConverter.toOffsetDateTime;
+import static java.util.Objects.nonNull;
+
 @AllArgsConstructor
 public class CardDAO {
     private final Connection connection;
 
-    public BoardEntity insert(final BoardEntity entity) throws SQLException {
-        var sql = "INSERT INTO FROM BOARDS (name) VALUES (?);";
+    public CardEntity insert(final CardEntity entity) throws SQLException {
+        var sql = "INSERT INTO CARDS (title, description, board_column_id) values (?, ?, ?);";
         try(var statement = connection.prepareStatement(sql)){
-            statement.setString(1, entity.getName());
+            var i = 1;
+            statement.setString(i ++, entity.getTitle());
+            statement.setString(i ++, entity.getDescription());
+            statement.setLong(i, entity.getBoardColumn().getId());
             statement.executeUpdate();
-            var resultSet = statement.getResultSet();
             if (statement instanceof StatementImpl impl){
                 entity.setId(impl.getLastInsertID());
-
             }
-            return entity;
         }
+        return entity;
     }
-    public void delete(final Long id) throws SQLException {
-        var sql = "DELETE FROM BOARDS WHERE id = ?;";
+
+    public void moveToColumn(final Long columnId, final Long cardId) throws SQLException{
+        var sql = "UPDATE CARDS SET board_column_id = ? WHERE id = ?;";
         try(var statement = connection.prepareStatement(sql)){
-            statement.setLong(1, id);
+            var i = 1;
+            statement.setLong(i ++, columnId);
+            statement.setLong(i, cardId);
             statement.executeUpdate();
         }
     }
-    public Optional<BoardEntity> findById(final Long id) throws SQLException {
-        var sql = "SELECT id, nome FROM BOARDS WHERE id = ?;";
+
+    public Optional<CardDetailsDTO> findById(final Long id) throws SQLException {
+        var sql =
+                """
+                SELECT c.id,
+                       c.title,
+                       c.description,
+                       b.blocked_at,
+                       b.block_reason,
+                       c.board_column_id,
+                       bc.name,
+                       (SELECT COUNT(sub_b.id)
+                               FROM BLOCKS sub_b
+                              WHERE sub_b.card_id = c.id) blocks_amount
+                  FROM CARDS c
+                  LEFT JOIN BLOCKS b
+                    ON c.id = b.card_id
+                   AND b.unblocked_at IS NULL
+                 INNER JOIN BOARDS_COLUMNS bc
+                    ON bc.id = c.board_column_id
+                  WHERE c.id = ?;
+                """;
         try(var statement = connection.prepareStatement(sql)){
             statement.setLong(1, id);
             statement.executeQuery();
             var resultSet = statement.getResultSet();
             if (resultSet.next()){
-                var entity = new BoardEntity();
-                entity.setId(resultSet.getLong("id"));
-                entity.setName(resultSet.getString("name"));
-                return Optional.of(entity);
+                var dto = new CardDetailsDTO(
+                        resultSet.getLong("c.id"),
+                        resultSet.getString("c.title"),
+                        resultSet.getString("c.description"),
+                        nonNull(resultSet.getString("b.block_reason")),
+                        toOffsetDateTime(resultSet.getTimestamp("b.blocked_at")),
+                        resultSet.getString("b.block_reason"),
+                        resultSet.getInt("blocks_amount"),
+                        resultSet.getLong("c.board_column_id"),
+                        resultSet.getString("bc.name")
+                );
+                return Optional.of(dto);
             }
-            return Optional.empty();
         }
+        return Optional.empty();
     }
-    public boolean exists(final Long id) throws SQLException {
-        var sql = "SELECT 1 FROM BOARDS WHERE id = ?;";
-        try(var statement = connection.prepareStatement(sql)){
-            statement.setLong(1, id);
-            statement.executeQuery();
-            return statement.getResultSet().next();
-        }
-    }
+
 }
